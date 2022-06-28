@@ -1,0 +1,196 @@
+---
+title: "note05"
+output: html_notebook
+---
+
+```{r}
+library(nlme)
+options(
+  width = 65,
+  ## reduce platform dependence in printed output when testing
+  digits = if (nzchar(Sys.getenv("R_TESTS"))) 3 else 5
+)
+```
+
+# 5 Extending the Basic Linear Mixed-Effects Model
+
+## 5.1 General Formulation of the Extended Model
+
+## 5.2 Variance Functions for Modeling Heteroscedasticity
+
+```{r}
+vf1Fixed <- varFixed(~age)
+vf1Fixed <- Initialize(vf1Fixed, data = Orthodont)
+varWeights(vf1Fixed)
+```
+
+```{r}
+1 / sqrt(8)
+1 / sqrt(10)
+```
+
+```{r}
+vf1Ident <- varIdent(c(Female = 0.5), ~ 1 | Sex)
+vf1Ident <- Initialize(vf1Ident, Orthodont)
+varWeights(vf1Ident)
+```
+
+```{r}
+vf2Ident <- varIdent(form = ~ 1 | Sex, fixed = c(Female = 0.5))
+vf2Ident <- Initialize(vf2Ident, Orthodont)
+varWeights(vf2Ident)
+```
+
+```{r}
+vf3Ident <- varIdent(form = ~ 1 | Sex * age)
+vf3Ident <- Initialize(vf3Ident, Orthodont)
+varWeights(vf3Ident)
+```
+
+```{r}
+vf1Power <- varPower(1)
+formula(vf1Power)
+```
+
+```{r}
+vf2Power <- varPower(fixed = 0.5)
+```
+
+```{r}
+vf3Power <- varPower(form = ~ fitted(.) | Sex, fixed = list(Male = 0.5, Female = 0))
+```
+
+```{r}
+vf1Exp <- varExp(form = ~ age | Sex, fixed = c(Female = 0))
+```
+
+```{r}
+vf1ConstPower <- varConstPower(
+  power = 0.5,
+  fixed = list(const = 1)
+)
+```
+
+```{r}
+vf1Comb <- varComb(
+  varIdent(c(Female = 0.5), ~ 1 | Sex),
+  varExp(1, ~age)
+)
+vf1Comb <- Initialize(vf1Comb, Orthodont)
+varWeights(vf1Comb)
+```
+
+```{r}
+head(Dialyzer)
+```
+
+```{r}
+plot(Dialyzer, outer = ~QB)
+```
+
+```{r}
+fm1Dial.lme <-
+  lme(
+    rate ~ (pressure + I(pressure^2) + I(pressure^3) + I(pressure^4)) * QB,
+    data = Dialyzer,
+    random = ~ pressure + I(pressure^2)
+  )
+fm1Dial.lme
+```
+
+```{r}
+plot(fm1Dial.lme, resid(.) ~ pressure, abline = 0)
+```
+
+```{r}
+fm2Dial.lme <- update(
+  fm1Dial.lme,
+  weights = varPower(form = ~pressure)
+)
+fm2Dial.lme
+```
+
+```{r}
+plot(fm2Dial.lme, resid(., type = "p") ~ pressure, abline = 0)
+```
+
+```{r}
+anova(fm1Dial.lme, fm2Dial.lme)
+```
+
+```{r}
+intervals(fm2Dial.lme)
+```
+
+```{r}
+plot(fm2Dial.lme, resid(.) ~ pressure | QB, abline = 0)
+```
+
+```{r}
+fm3Dial.lme <- update(fm2Dial.lme,
+  weights = varPower(form = ~ pressure | QB)
+)
+fm3Dial.lme
+```
+
+```{r}
+anova(fm2Dial.lme, fm3Dial.lme)
+```
+
+```{r}
+fm4Dial.lme <- update(fm2Dial.lme, weights = varConstPower(form = ~pressure))
+fm4Dial.lme
+```
+
+```{r}
+anova(fm2Dial.lme, fm4Dial.lme)
+```
+
+```{r}
+plot(augPred(fm2Dial.lme), grid = T)
+```
+
+```{r}
+anova(fm2Dial.lme)
+```
+
+```{r}
+anova(fm2Dial.lme, Terms = 8:10)
+```
+
+```{r}
+BodyWeight
+```
+
+```{r}
+plot(BodyWeight, outer = ~Diet, aspect = 0.7, layout = c(3, 1))
+```
+
+```{r}
+fm1BW.lme <-
+  lme(
+    weight ~ Time * Diet,
+    data = BodyWeight,
+    random = ~Time
+  )
+summary(fm1BW.lme)
+```
+
+```{r}
+plot(fm1BW.lme)
+```
+
+```{r}
+fm2BW.lme <- update(fm1BW.lme, weights = varPower(form = ~ fitted(.)))
+summary(fm2BW.lme)
+```
+
+```{r}
+anova(fm1BW.lme, fm2BW.lme)
+```
+
+```{r}
+anova(fm2BW.lme, L = c("Time:Diet2" = 1, "Time:Diet3" = -1))
+```
+
+## 5.3 Correlation Structures for Modeling Dependence
